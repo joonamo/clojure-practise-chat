@@ -97,12 +97,8 @@
   [payload conn]
   (if (contains? payload :target-channel)
     (let [channel (payload :target-channel)]
-      (println (str (get-name-for-user conn) " joining channel " channel))
-      (println (str "conn: " conn " chatrooms: " chatrooms))
       (s/connect (bus/subscribe chatrooms channel) conn)
-      (println "maybe success?")
     )
-    
     (reply-error conn "join-channel action payload didn't include target-channel!")))
 
 (defn handle-action-get-channel-users
@@ -113,11 +109,21 @@
       (send-response conn "channel-users" {:channel (payload :target-channel) :users users}))
     (reply-error conn "change-name action payload didn't include new-name!")))
 
+(defn get-channels-info
+  [target-bus]
+  (map #(hash-map :name (key %) :user-count (count (val %))) (bus/topic->subscribers target-bus)))
+
+(defn handle-action-get-channels-info
+  [_ conn]
+  (send-response conn "channels-info" {:info (get-channels-info chatrooms)}))
+
+
 (def action-mapping {
   "send-message" handle-action-send-message
   "change-name" handle-action-change-name
   "join-channel" handle-action-join-channel
   "get-channel-users" handle-action-get-channel-users
+  "get-channels-info" handle-action-get-channels-info
 })
 
 (defn handle-incoming-data
