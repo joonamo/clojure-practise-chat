@@ -11,16 +11,25 @@
     [clojure.core.async :as a]
     [clojure.data.json :as json]))
 
+(declare send-to-channel)
+
 ;; user handling
 (def connections-to-users (atom {}))
 (def chatrooms (bus/event-bus))
 
+(defn get-name-for-user
+  [target-user]
+  (if (contains? @connections-to-users target-user)
+    ((@connections-to-users target-user) :name)
+    nil))
+
 (defn add-user 
   [users new-connection]
-  (assoc users new-connection {:name "new-user"}))
+  (assoc users new-connection {:name "new-user" :channels #{}}))
 (defn add-user! 
   [new-connection]
   (swap! connections-to-users add-user new-connection))
+
 (defn rename-user
   [users target-user new-name]
   (if (contains? users target-user)
@@ -30,15 +39,42 @@
 (defn rename-user!
   [target-user new-name]
   (swap! connections-to-users rename-user target-user new-name))
+
+(defn add-user-channel
+  [users target-user new-channel]
+  (if (contains? users target-user)
+    (update-in users [target-user :channels] #(conj % new-channel))
+    users)
+)
+(defn add-user-channel!
+  [target-user new-channel]
+  (swap! connections-to-users add-user-channel target-user new-channel))
+
 (defn remove-user!
   [target-user]
   (swap! connections-to-users dissoc target-user))
 
-(defn get-name-for-user
+(defn notify-leave-channel
+  [channel user-name]
+  (if (nil? channel)
+    nil
+    (send-to-channel channel "user-leave" {:user user-name :channel channel})))
+
+(defn notify-leave-channel-all
+  [channels user-name]
+  (notify-leave-channel (first channels) user-name)
+  (if (empty? channels)
+    nil
+    (recur (rest channels) user-name)))
+
+(defn handle-user-leave
   [target-user]
+  (println (str "user leaving " target-user))
   (if (contains? @connections-to-users target-user)
-    ((@connections-to-users target-user) :name)
-    nil))
+    (let [channels ((@connections-to-users target-user) :channels)]
+      (notify-leave-channel-all channels (get-name-for-user target-user))) 
+    (println "unknown user"))
+  (remove-user! target-user))
 
 ;; default responses
 (def non-websocket-request
@@ -69,6 +105,12 @@
   [conn message]
   (s/put! conn (error-json-response (str message))))
 
+(defn send-to-channel
+  [channel type payload]
+  (let [response (json-response type payload)]
+    (println (str "send-to-channel " response))
+    (bus/publish! chatrooms channel response)))
+
 (defn echo-handler
   [req]
   (->
@@ -80,12 +122,16 @@
       (fn [_]
         non-websocket-request))))
 
+
 ;; action handlers
 (defn handle-action-send-message
   [payload conn]
-  (if (and (contains? payload :message) (contains? payload :target-channel))
-    (bus/publish! chatrooms (payload :target-channel) (str (get-name-for-user conn) " said " (payload :message)))
-    (reply-error conn "send-message action payload didn't have message and/or room!")))
+  (let [message (payload :message)
+        target-channel (payload :target-channel)]
+  (if (and message target-channel)
+    (send-to-channel target-channel 
+      {:from-user (get-name-for-user conn) :channel target-channel :message message})
+    (reply-error conn "send-message action payload didn't have message and/or target-channel!"))))
 
 (defn handle-action-change-name
   [payload conn]
@@ -97,6 +143,8 @@
   [payload conn]
   (if (contains? payload :target-channel)
     (let [channel (payload :target-channel)]
+      (add-user-channel! conn channel)
+      (send-to-channel channel "user-join" {:user (get-name-for-user conn) :channel channel})
       (s/connect (bus/subscribe chatrooms channel) conn)
     )
     (reply-error conn "join-channel action payload didn't include target-channel!")))
@@ -160,7 +208,7 @@
       ;; otherwise, create new user
       (d/let-flow [room "default"
                     _ (add-user! conn)
-                    _ (s/on-closed conn #(remove-user! conn))]
+                    _ (s/on-closed conn #(handle-user-leave conn))]
         
         (s/consume
           #(handle-incoming-data room conn %)
