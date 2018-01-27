@@ -49,6 +49,15 @@
    :headers {"content-type" "application/text"}
    :body "Thank you for chatting!"})
 
+(defn error-json-response
+  [desc]
+  (json/write-str {:notification "Error" :description (str desc)})
+)
+
+(defn reply-error
+  [conn message]
+  (s/put! conn (error-json-response (str message))))
+
 (defn echo-handler
   [req]
   (->
@@ -62,10 +71,58 @@
 
 (def chatrooms (bus/event-bus))
 
+(defn handle-action-send-message
+  [payload conn]
+  (if (and (payload :message) (payload :room))
+    (bus/publish! chatrooms (payload :room) (str (get-name-for-user conn) " said " (payload :message)))
+    (reply-error conn "send-message action payload didn't have message and/or room!")))
+
+(defn handle-action-change-name
+  [payload conn]
+  (if (payload :new-name)
+    (rename-user! conn (payload :new-name)) 
+    (reply-error conn "change-name action payload didn't include new-name!")))
+
+(defn handle-action-join-channel
+  [payload conn]
+  (if (payload :target-channel)
+    (let [channel (payload :target-channel)]
+      (println (str (get-name-for-user conn) " joining channel " channel))
+      (println (str "conn: " conn " chatrooms: " chatrooms))
+      (s/connect (bus/subscribe chatrooms channel) conn)
+      (println "maybe success?")
+    )
+    
+    (reply-error conn "join-channel action payload didn't include target-channel!")))
+
+(def action-mapping {
+  "send-message" handle-action-send-message
+  "change-name" handle-action-change-name
+  "join-channel" handle-action-join-channel
+})
+
 (defn handle-incoming-data
   [room conn data]
   (println (str "data: " data))
-  (bus/publish! chatrooms room (str (get-name-for-user conn) " said " data)))
+  (let [command (try
+    (json/read-str (str data) :key-fn keyword)
+    (catch Exception e nil))] 
+
+    (println (str "command: " command))
+    (if command
+      ;; We found at least some kind of json!
+      (let [handler 
+        (get action-mapping (command :action) 
+        (fn [& _] (reply-error conn (str "Unknown command: " (command :action)))))
+        ]
+
+        (handler (command :payload) conn)
+      )
+      ;; Doesn't seem like json, error!
+      (reply-error conn "Malformed json!")
+    )
+  )
+)
 
 (defn chat-handler
   [req]
@@ -79,10 +136,7 @@
       (d/let-flow [room "default"
                     _ (add-user! conn)
                     _ (s/on-closed conn #(remove-user! conn))]
-        ;; take all messages from the chatroom, and feed them to the client
-        (s/connect
-          (bus/subscribe chatrooms room)
-          conn)
+        
         (s/consume
           #(handle-incoming-data room conn %)
           (->> conn
