@@ -9,7 +9,8 @@
     [manifold.deferred :as d]
     [manifold.bus :as bus]
     [clojure.core.async :as a]
-    [clojure.data.json :as json]))
+    [clojure.data.json :as json]
+    [clj-uuid :as uuid]))
 
 (declare send-to-channel)
 
@@ -23,9 +24,20 @@
     ((@connections-to-users target-user) :name)
     nil))
 
+(defn get-id-for-user
+  [target-user]
+  (if (contains? @connections-to-users target-user)
+    ((@connections-to-users target-user) :id)
+    (uuid/v0)))
+
+(defn get-name-and-id-for-user
+  "id will be returned as string for safe jsonifying"
+  [target-user]
+  {:name (get-name-for-user target-user) :id (str (get-id-for-user target-user))})
+
 (defn add-user 
   [users new-connection]
-  (assoc users new-connection {:name "new-user" :channels #{}}))
+  (assoc users new-connection {:name "new-user" :channels #{} :id (uuid/v4)}))
 (defn add-user! 
   [new-connection]
   (swap! connections-to-users add-user new-connection))
@@ -55,24 +67,24 @@
   (swap! connections-to-users dissoc target-user))
 
 (defn notify-leave-channel
-  [channel user-name]
+  [channel user]
   (if (nil? channel)
     nil
-    (send-to-channel channel "user-leave" {:user user-name :channel channel})))
+    (send-to-channel channel "user-leave" {:user user :channel channel })))
 
 (defn notify-leave-channel-all
-  [channels user-name]
-  (notify-leave-channel (first channels) user-name)
+  [channels user]
+  (notify-leave-channel (first channels) user)
   (if (empty? channels)
     nil
-    (recur (rest channels) user-name)))
+    (recur (rest channels) user)))
 
 (defn handle-user-leave
   [target-user]
   (println (str "user leaving " target-user))
   (if (contains? @connections-to-users target-user)
     (let [channels ((@connections-to-users target-user) :channels)]
-      (notify-leave-channel-all channels (get-name-for-user target-user))) 
+      (notify-leave-channel-all channels (get-name-and-id-for-user target-user))) 
     (println "unknown user"))
   (remove-user! target-user))
 
@@ -129,9 +141,15 @@
   (let [message (payload :message)
         target-channel (payload :target-channel)]
   (if (and message target-channel)
-    (send-to-channel target-channel 
-      {:from-user (get-name-for-user conn) :channel target-channel :message message})
+    (send-to-channel target-channel "message" 
+      {:user (get-name-and-id-for-user conn) :channel target-channel :message message})
     (reply-error conn "send-message action payload didn't have message and/or target-channel!"))))
+
+; (defn notify-channel-user-rename
+;   [channel old-name new-name])
+
+; (defn notify-user-rename
+;   [channels old-name new-name])
 
 (defn handle-action-change-name
   [payload conn]
@@ -144,7 +162,7 @@
   (if (contains? payload :target-channel)
     (let [channel (payload :target-channel)]
       (add-user-channel! conn channel)
-      (send-to-channel channel "user-join" {:user (get-name-for-user conn) :channel channel})
+      (send-to-channel channel "user-join" {:user(get-name-and-id-for-user conn) :channel channel})
       (s/connect (bus/subscribe chatrooms channel) conn)
     )
     (reply-error conn "join-channel action payload didn't include target-channel!")))
@@ -153,7 +171,9 @@
   [payload conn]
   (if (contains? payload :target-channel)
     ;; this is not pretty. s/downstream returns a list of [description stream] pairs and the stream there is our user
-    (let [users (map (fn [stream] (get-name-for-user (second (first (s/downstream stream))))) (bus/downstream chatrooms (payload :target-channel)))]
+    (let [users (map 
+      (fn [stream] (get-name-and-id-for-user (second (first (s/downstream stream))))) 
+      (bus/downstream chatrooms (payload :target-channel)))]
       (send-response conn "channel-users" {:channel (payload :target-channel) :users users}))
     (reply-error conn "change-name action payload didn't include new-name!")))
 
