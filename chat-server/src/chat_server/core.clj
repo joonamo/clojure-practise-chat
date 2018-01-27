@@ -8,8 +8,10 @@
     [manifold.stream :as s]
     [manifold.deferred :as d]
     [manifold.bus :as bus]
-    [clojure.core.async :as a]))
+    [clojure.core.async :as a]
+    [clojure.data.json :as json]))
 
+;; user handling
 (def connections-to-users (atom {}))
 
 (defn add-user 
@@ -31,11 +33,21 @@
   [target-user]
   (swap! connections-to-users dissoc target-user))
 
+(defn get-name-for-user
+  [target-user]
+  (if (contains? @connections-to-users target-user)
+    ((@connections-to-users target-user) :name)
+    nil))
 
 (def non-websocket-request
   {:status 400
    :headers {"content-type" "application/text"}
    :body "Expected a websocket request."})
+
+(def quit-response
+  {:status 200
+   :headers {"content-type" "application/text"}
+   :body "Thank you for chatting!"})
 
 (defn echo-handler
   [req]
@@ -51,32 +63,35 @@
 (def chatrooms (bus/event-bus))
 
 (defn handle-incoming-data
-  [room & args]
-  (println (str room " " (first args)))
-  (bus/publish! chatrooms room args))
+  [room conn data]
+  (println (str "data: " data))
+  (bus/publish! chatrooms room (str (get-name-for-user conn) " said " data)))
 
 (defn chat-handler
   [req]
-  (d/let-flow [conn (d/catch
+    (d/let-flow [conn (d/catch
                       (http/websocket-connection req)
                       (fn [_] nil))]
     (if-not conn
       ;; if it wasn't a valid websocket handshake, return an error
       non-websocket-request
-      ;; otherwise, take the first two messages, which give us the chatroom and name
-      (d/let-flow [room (s/take! conn)
-                   name (s/take! conn)]
-        (println (str "user " name " joined channel " room))
+      ;; otherwise, create new user
+      (d/let-flow [room "default"
+                    _ (add-user! conn)
+                    _ (s/on-closed conn #(remove-user! conn))]
         ;; take all messages from the chatroom, and feed them to the client
         (s/connect
           (bus/subscribe chatrooms room)
           conn)
-        ;; take all messages from the client, prepend the name, and publish it to the room
         (s/consume
-          #(handle-incoming-data room %)
+          #(handle-incoming-data room conn %)
           (->> conn
-            (s/map #(str name ": " %))
-            (s/buffer 100)))))))
+              (s/map #(str %))
+              (s/buffer 100))))))
+
+    quit-response)
+
+
 (def handler
   (params/wrap-params
     (compojure/routes
