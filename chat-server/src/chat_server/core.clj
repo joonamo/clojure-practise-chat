@@ -13,6 +13,7 @@
 
 ;; user handling
 (def connections-to-users (atom {}))
+(def chatrooms (bus/event-bus))
 
 (defn add-user 
   [users new-connection]
@@ -39,6 +40,7 @@
     ((@connections-to-users target-user) :name)
     nil))
 
+;; default responses
 (def non-websocket-request
   {:status 400
    :headers {"content-type" "application/text"}
@@ -49,9 +51,18 @@
    :headers {"content-type" "application/text"}
    :body "Thank you for chatting!"})
 
+;; responses to socket
+(defn json-response
+  [type payload]
+  (json/write-str {:type type :payload payload}))
+
+(defn send-response
+  [conn type payload]
+  (s/put! conn (json-response type payload)))
+
 (defn error-json-response
   [desc]
-  (json/write-str {:notification "Error" :description (str desc)})
+  (json-response "Error" {:description (str desc)})
 )
 
 (defn reply-error
@@ -69,23 +80,22 @@
       (fn [_]
         non-websocket-request))))
 
-(def chatrooms (bus/event-bus))
-
+;; action handlers
 (defn handle-action-send-message
   [payload conn]
-  (if (and (payload :message) (payload :room))
-    (bus/publish! chatrooms (payload :room) (str (get-name-for-user conn) " said " (payload :message)))
+  (if (and (contains? payload :message) (contains? payload :target-channel))
+    (bus/publish! chatrooms (payload :target-channel) (str (get-name-for-user conn) " said " (payload :message)))
     (reply-error conn "send-message action payload didn't have message and/or room!")))
 
 (defn handle-action-change-name
   [payload conn]
-  (if (payload :new-name)
+  (if (contains? payload :new-name)
     (rename-user! conn (payload :new-name)) 
     (reply-error conn "change-name action payload didn't include new-name!")))
 
 (defn handle-action-join-channel
   [payload conn]
-  (if (payload :target-channel)
+  (if (contains? payload :target-channel)
     (let [channel (payload :target-channel)]
       (println (str (get-name-for-user conn) " joining channel " channel))
       (println (str "conn: " conn " chatrooms: " chatrooms))
@@ -95,10 +105,19 @@
     
     (reply-error conn "join-channel action payload didn't include target-channel!")))
 
+(defn handle-action-get-channel-users
+  [payload conn]
+  (if (contains? payload :target-channel)
+    ;; this is not pretty. s/downstream returns a list of [description stream] pairs and the stream there is our user
+    (let [users (map (fn [stream] (get-name-for-user (second (first (s/downstream stream))))) (bus/downstream chatrooms (payload :target-channel)))]
+      (send-response conn "channel-users" {:channel (payload :target-channel) :users users}))
+    (reply-error conn "change-name action payload didn't include new-name!")))
+
 (def action-mapping {
   "send-message" handle-action-send-message
   "change-name" handle-action-change-name
   "join-channel" handle-action-join-channel
+  "get-channel-users" handle-action-get-channel-users
 })
 
 (defn handle-incoming-data
@@ -161,3 +180,5 @@
   (http/start-server handler {:port 10000})
   (println "Server running?")
   )
+
+
