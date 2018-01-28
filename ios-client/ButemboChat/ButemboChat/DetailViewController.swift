@@ -8,17 +8,24 @@
 
 import UIKit
 
-class DetailViewController: UIViewController, UITableViewDelegate, UITextViewDelegate, UIGestureRecognizerDelegate {
+class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate, UIGestureRecognizerDelegate {
+    
+    
 
     @IBOutlet weak var bottomHeight: NSLayoutConstraint!
-    @IBOutlet weak var messageField: UITextField!
+    @IBOutlet weak var messageField: UITextView!
     @IBOutlet weak var chatHistory: UITableView!
     
     @IBAction func sendButtonPressed(_ sender: Any) {
+        if let message = messageField.text {
+            messages.append(message)
+            let indexPath = IndexPath(row: messages.count - 1, section: 0)
+            chatHistory.insertRows(at: [indexPath], with: .automatic)
+            messageField.text = ""
+        }
     }
     
-    var serverConnection: ServerConnection!
-    var messages = [Any]()
+    var messages = [String]()
     var channel = "Unknown channel"
 
     func configureView() {
@@ -30,13 +37,19 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITextViewDel
         swipeGestureRecognizer.direction = UISwipeGestureRecognizerDirection.down
         swipeGestureRecognizer.delegate = self
         view.addGestureRecognizer(swipeGestureRecognizer)
+        
+        chatHistory.delegate = self
+        chatHistory.dataSource = self
+        chatHistory.register(UINib(nibName: "ChatCell", bundle: nil), forCellReuseIdentifier: "idCellChat")
+        chatHistory.estimatedRowHeight = 90.0
+        chatHistory.rowHeight = UITableViewAutomaticDimension
     }
     
     @objc
     func handleKeyboardDidShowNotification(notification: NSNotification) {
         if let userInfo = notification.userInfo {
             if let keyboardFrame = (userInfo[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
-                bottomHeight.constant = keyboardFrame.size.height + 20
+                bottomHeight.constant = keyboardFrame.size.height + 40
                 view.layoutIfNeeded()
             }
         }
@@ -80,17 +93,19 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITextViewDel
     }
     
     
-    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return messages.count
     }
-    
-    
-//    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-//        let cell = tableView.dequeueReusableCellWithIdentifier("idCellChat", forIndexPath: indexPath) as! ChatCell
-//        
-//        return cell
-//    }
 
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath as IndexPath) as! MessageTableCellTableViewCell
+        
+        cell.message?.text = messages[indexPath.row]
+        cell.sender?.text = "Unknown user:"
+        
+        return cell
+    }
 
 }
 

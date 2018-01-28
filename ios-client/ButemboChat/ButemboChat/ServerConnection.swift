@@ -111,7 +111,7 @@ class ServerConnection: WebSocketDelegate {
     
     func sendAction(action: String, payload: JSON)
     {
-        if (isConnected || true)
+        if (isConnected)
         {
             var data: JSON = JSON()
             data["action"] = JSON(action)

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		3645C16B4D988528BC259249 /* Pods_ButemboChat.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1D98F9609FB45FBA6329C121 /* Pods_ButemboChat.framework */; };
 		E97B4C3B201E07BA0039A051 /* ServerConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97B4C3A201E07BA0039A051 /* ServerConnection.swift */; };
+		E97B4C41201E62270039A051 /* MessageTableCellTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97B4C40201E62270039A051 /* MessageTableCellTableViewCell.swift */; };
 		E9F4CE1A201DE52B0013C2DB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F4CE19201DE52B0013C2DB /* AppDelegate.swift */; };
 		E9F4CE1C201DE52B0013C2DB /* MasterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F4CE1B201DE52B0013C2DB /* MasterViewController.swift */; };
 		E9F4CE1E201DE52B0013C2DB /* DetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F4CE1D201DE52B0013C2DB /* DetailViewController.swift */; };
@@ -22,6 +23,7 @@
 		CA2EA74462222078D914D57F /* Pods-ButemboChat.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ButemboChat.debug.xcconfig"; path = "Pods/Target Support Files/Pods-ButemboChat/Pods-ButemboChat.debug.xcconfig"; sourceTree = "<group>"; };
 		E81F78BA3D975F9BC961C624 /* Pods-ButemboChat.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ButemboChat.release.xcconfig"; path = "Pods/Target Support Files/Pods-ButemboChat/Pods-ButemboChat.release.xcconfig"; sourceTree = "<group>"; };
 		E97B4C3A201E07BA0039A051 /* ServerConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConnection.swift; sourceTree = "<group>"; };
+		E97B4C40201E62270039A051 /* MessageTableCellTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageTableCellTableViewCell.swift; sourceTree = "<group>"; };
 		E9F4CE16201DE52B0013C2DB /* ButemboChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ButemboChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9F4CE19201DE52B0013C2DB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		E9F4CE1B201DE52B0013C2DB /* MasterViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterViewController.swift; sourceTree = "<group>"; };
@@ -78,6 +80,7 @@
 				E9F4CE1B201DE52B0013C2DB /* MasterViewController.swift */,
 				E9F4CE1D201DE52B0013C2DB /* DetailViewController.swift */,
 				E9F4CE1F201DE52B0013C2DB /* Main.storyboard */,
+				E97B4C40201E62270039A051 /* MessageTableCellTableViewCell.swift */,
 				E9F4CE22201DE52B0013C2DB /* Assets.xcassets */,
 				E9F4CE24201DE52B0013C2DB /* LaunchScreen.storyboard */,
 				E9F4CE27201DE52B0013C2DB /* Info.plist */,
@@ -232,6 +235,7 @@
 				E97B4C3B201E07BA0039A051 /* ServerConnection.swift in Sources */,
 				E9F4CE1E201DE52B0013C2DB /* DetailViewController.swift in Sources */,
 				E9F4CE1C201DE52B0013C2DB /* MasterViewController.swift in Sources */,
+				E97B4C41201E62270039A051 /* MessageTableCellTableViewCell.swift in Sources */,
 				E9F4CE1A201DE52B0013C2DB /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
