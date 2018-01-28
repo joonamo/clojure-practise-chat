@@ -241,7 +241,7 @@
       (d/let-flow [room "default"
                     _ (add-user! conn)
                     _ (s/on-closed conn #(handle-user-leave conn))]
-        
+        (send-response conn "welcome" {:user (get-name-and-id-for-user conn)})
         (s/consume
           #(handle-incoming-data room conn %)
           (->> conn

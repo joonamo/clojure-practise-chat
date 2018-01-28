@@ -8,7 +8,7 @@
 
 import UIKit
 
-class MasterViewController: UITableViewController {
+class MasterViewController: UITableViewController, ServerEventListener {
 
     var detailViewController: DetailViewController? = nil
     var channels = [String]()
@@ -18,7 +18,12 @@ class MasterViewController: UITableViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         navigationItem.leftBarButtonItem = editButtonItem
-
+        
+        editButtonItem.title = "Connect"
+        navigationItem.title = ""
+        
+        ServerConnection.sharedInstance.eventListeners.append(self)
+        
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(joinChannel(_:)))
         navigationItem.rightBarButtonItem = addButton
         if let split = splitViewController {
@@ -27,6 +32,17 @@ class MasterViewController: UITableViewController {
         }
     }
 
+    override func setEditing(_ editing: Bool, animated: Bool) {
+        if (ServerConnection.sharedInstance.isConnected)
+        {
+            changeUserName(nil)
+        }
+        else
+        {
+            connectToServer(nil)
+        }
+    }
+    
     override func viewWillAppear(_ animated: Bool) {
         clearsSelectionOnViewWillAppear = splitViewController!.isCollapsed
         super.viewWillAppear(animated)
@@ -60,11 +76,56 @@ class MasterViewController: UITableViewController {
                 self.insertNewChannel(channelName: text)
             }
         }
-        
         alertController.addAction(OKAction)
+        
+        let CancelAction = UIAlertAction(title: "Cancel", style: UIAlertActionStyle.cancel)
+        alertController.addAction(CancelAction)
+        
         present(alertController, animated: true, completion: nil)
     }
-
+    
+    func connectToServer(_ sender: Any?) {
+        let alertController = UIAlertController(title: "Connect to server", message: "Server address:", preferredStyle: UIAlertControllerStyle.alert)
+        
+        alertController.addTextField(configurationHandler: nil)
+        alertController.textFields![0].text = "localhost:10000/chat"
+        
+        let OKAction = UIAlertAction(title: "Connect", style: UIAlertActionStyle.default) { (action) -> Void in
+            let textfield = alertController.textFields![0]
+            let text : String = textfield.text!
+            if text.count > 0 {
+                ServerConnection.sharedInstance.doConnect(targetAddress: text)
+            }
+        }
+        alertController.addAction(OKAction)
+        
+        let CancelAction = UIAlertAction(title: "Cancel", style: UIAlertActionStyle.cancel)
+        alertController.addAction(CancelAction)
+        
+        present(alertController, animated: true, completion: nil)
+    }
+    
+    func changeUserName(_ sender: Any?) {
+        let alertController = UIAlertController(title: "Change name", message: "New name:", preferredStyle: UIAlertControllerStyle.alert)
+        
+        alertController.addTextField(configurationHandler: nil)
+        
+        let OKAction = UIAlertAction(title: "Change", style: UIAlertActionStyle.default) { (action) -> Void in
+            let textfield = alertController.textFields![0]
+            let text : String = textfield.text!
+            if text.count > 0 {
+                ServerConnection.sharedInstance.changeUserName(newName: text)
+            }
+        }
+        alertController.addAction(OKAction)
+        
+        let CancelAction = UIAlertAction(title: "Cancel", style: UIAlertActionStyle.cancel)
+        alertController.addAction(CancelAction)
+        
+        present(alertController, animated: true, completion: nil)
+    }
+    
+    
     // MARK: - Segues
 
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -110,5 +171,29 @@ class MasterViewController: UITableViewController {
             // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view.
         }
     }
+    
+    // Mark: ServerEventListener interface
+    
+    func onConnected() {
+        editButtonItem.title = "Change Name"
+    }
+    func onDisconnected() {
+        editButtonItem.title = "Connect"
+    }
+    
+    func onWelcome(myId: String, myName: String) {
+        if (myName == "new-user")
+        {
+            changeUserName(nil)
+        }
+    }
+    
+    func onError(description: String) {}
+    func onUserLeave(channel: String, userName: String, userId: String) {}
+    func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
+    func onMessage(channel: String, message: String, userName: String, userId: String) {}
+    func onUserJoin(channel: String, userName: String, userId: String) {}
+    func onChannelUsers(channel: String, users: [(String, String)]) {}
+    func onChannelsInfo(info: [(String, Int)]) {}
 }
 
