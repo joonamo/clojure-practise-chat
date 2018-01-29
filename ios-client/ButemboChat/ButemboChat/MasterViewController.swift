@@ -12,7 +12,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
 
     var detailViewController: DetailViewController? = nil
     var channels = [String]()
-
+    var joinedChannels = [String]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -24,12 +24,15 @@ class MasterViewController: UITableViewController, ServerEventListener {
         
         ServerConnection.sharedInstance.eventListeners.append(self)
         
-        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(joinChannel(_:)))
-        navigationItem.rightBarButtonItem = addButton
         if let split = splitViewController {
             let controllers = split.viewControllers
             detailViewController = (controllers[controllers.count-1] as! UINavigationController).topViewController as? DetailViewController
         }
+        
+        refreshControl = UIRefreshControl()
+        refreshControl?.attributedTitle = NSAttributedString(string: "Pull to refresh channels")
+        refreshControl?.addTarget(self, action: #selector(refreshChannels), for: UIControlEvents.valueChanged)
+        tableView.addSubview(refreshControl!)
     }
 
     override func setEditing(_ editing: Bool, animated: Bool) {
@@ -73,7 +76,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
             let text : String = textfield.text!
             if text.count > 0 {
                 self.insertNewChannel(channelName: text)
-                ServerConnection.sharedInstance.joinChannel(channelName: text)
+                self.onJoinChannel(name: text)
             }
         }
         alertController.addAction(OKAction)
@@ -125,6 +128,18 @@ class MasterViewController: UITableViewController, ServerEventListener {
         present(alertController, animated: true, completion: nil)
     }
     
+    func onJoinChannel(name: String)
+    {
+        ServerConnection.sharedInstance.joinChannel(channelName: name)
+        self.joinedChannels.append(name)
+        self.tableView.reloadData()
+    }
+    
+    @objc
+    func refreshChannels()
+    {
+        ServerConnection.sharedInstance.requestChannelsInfo()
+    }
     
     // MARK: - Segues
 
@@ -134,7 +149,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
                 let object = channels[indexPath.row]
                 let controller = (segue.destination as! UINavigationController).topViewController as! DetailViewController
                 controller.channel = object
-                ServerConnection.sharedInstance.joinChannel(channelName: object)
+                onJoinChannel(name: object)
                 controller.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
                 controller.navigationItem.leftItemsSupplementBackButton = true
             }
@@ -154,7 +169,11 @@ class MasterViewController: UITableViewController, ServerEventListener {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
 
-        let object = channels[indexPath.row]
+        var object = channels[indexPath.row]
+        if (joinedChannels.contains(object))
+        {
+            object = String(format: "%@ - Joined", object)
+        }
         cell.textLabel!.text = object
         return cell
     }
@@ -177,8 +196,14 @@ class MasterViewController: UITableViewController, ServerEventListener {
     
     func onConnected() {
         editButtonItem.title = "Change Name"
-        ServerConnection.sharedInstance.requestChannelsInfo()
+        refreshChannels()
+        
+        if navigationItem.rightBarButtonItem == nil {
+            let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(joinChannel(_:)))
+            navigationItem.rightBarButtonItem = addButton
+        }
     }
+    
     func onDisconnected() {
         editButtonItem.title = "Connect"
     }
@@ -196,10 +221,12 @@ class MasterViewController: UITableViewController, ServerEventListener {
     func onMessage(channel: String, message: String, userName: String, userId: String) {}
     func onUserJoin(channel: String, userName: String, userId: String) {}
     func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
+    
     func onChannelsInfo(info: [(name: String, userCount: Int)]) {
         for channel in info {
             insertNewChannel(channelName: channel.name)
         }
+        refreshControl?.endRefreshing()
     }
 }
 
