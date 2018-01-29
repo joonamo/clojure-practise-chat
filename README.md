@@ -18,3 +18,5 @@ Practising clojure and swift by creating a simple chat server and iOs client
 
 # Naming
 Server is named chat-server, since that is what it does. Client is named Butembo Chat, since I was drinking coffee from Butembo at the time I created the Xcode project. Butembo is a city in Kongo.
+
+![Screenshot](https://raw.githubusercontent.com/joonamo/clojure-practise-chat/master/preview.png)
