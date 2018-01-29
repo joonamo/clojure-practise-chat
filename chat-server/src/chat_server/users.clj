@@ -65,12 +65,14 @@
   (swap! connections-to-users dissoc target-user))
 
 (defn notify-leave-channel
+  "notifies other channel users about user leaving"
   [channel user]
   (if (nil? channel)
     nil
     (send-to-channel channel "user-leave" {:user user :channel channel })))
 
 (defn notify-leave-channel-all
+  "Takes all user channels and notifies them about user leaving"
   [channels user]
   (notify-leave-channel (first channels) user)
   (if (empty? channels)

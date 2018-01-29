@@ -1,36 +1,15 @@
-# my-proj
+# chat-server
 
-FIXME: description
-
-## Installation
-
-Download from http://example.com/FIXME.
+Simple chat server that works on websockets
 
 ## Usage
 
-FIXME: explanation
+Simplest way is to run with leiningen
 
-    $ java -jar my-proj-0.1.0-standalone.jar [args]
+    $ lein run
 
-## Options
+For debugging, you can also run in repl to inspect what is happening
 
-FIXME: listing of options this app accepts.
-
-## Examples
-
-...
-
-### Bugs
-
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
-
-## License
-
-Copyright © 2018 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+    $ lein repl
+    $ chat-server.core=> (http/start-server handler {:port 10000}) ;; to start server
+    $ ;; all interesting bits can be inspected at @connections-to-users

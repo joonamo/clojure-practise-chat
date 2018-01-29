@@ -73,6 +73,7 @@
     (reply-error conn "change-name action payload didn't include new-name!")))
 
 (defn get-channels-info
+  "Extracts all channel names and their user counts from target-bus"
   [target-bus]
   (map #(hash-map :name (key %) :user-count (count (val %))) (bus/topic->subscribers target-bus)))
 

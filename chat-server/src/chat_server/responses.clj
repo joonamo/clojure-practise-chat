@@ -12,6 +12,7 @@
     [clojure.data.json :as json]
     [clj-uuid :as uuid]))
 
+;; Event bus for users to subscribe to
 (def chatrooms (bus/event-bus))
 
 ;; default responses

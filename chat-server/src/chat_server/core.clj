@@ -25,6 +25,7 @@
 })
 
 (defn handle-incoming-data
+  "Handles data from client"
   [room conn data]
   (println (str "data: " data))
   (let [command (try
@@ -48,6 +49,7 @@
 )
 
 (defn chat-handler
+  "Handles initial connection"
   [req]
     (d/let-flow [conn (d/catch
                       (http/websocket-connection req)
@@ -70,6 +72,7 @@
 
 
 (def handler
+  "Routes http requests, currently only /chat is allowed path"
   (params/wrap-params
     (compojure/routes
       (GET "/chat" [] chat-handler)
