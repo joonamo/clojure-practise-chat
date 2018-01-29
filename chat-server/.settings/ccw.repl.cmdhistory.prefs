@@ -1,2 +1,0 @@
-cmdhistory=["(http/start-server handler {\:port 10000})" "(+ 1 2)" "( + 1 1)" "(http/start-server handler {\:port 10000})" "(+ 1 1)"]
-eclipse.preferences.version=1
