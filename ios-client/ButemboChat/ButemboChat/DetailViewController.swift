@@ -9,6 +9,7 @@
 import UIKit
 
 class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate, UIGestureRecognizerDelegate, ServerEventListener {
+    
 
     var messages = [(message: String, userName: String, userId: String)]()
     var channel = "Unknown channel"
@@ -169,9 +170,9 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         }
     }
     
-    func onChannelUsers(channel: String, users: [(String, String)]) {}
+    func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
     
-    func onChannelsInfo(info: [(String, Int)]) {}
+    func onChannelsInfo(info: [(name: String, userCount: Int)]) {}
 
 }
 

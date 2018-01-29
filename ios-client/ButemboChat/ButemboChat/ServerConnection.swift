@@ -19,8 +19,8 @@ protocol ServerEventListener: class {
     func onUserRename(newName: String, oldName: String, userName: String, userId: String) -> Void
     func onMessage(channel: String, message: String, userName: String, userId: String) -> Void
     func onUserJoin(channel: String, userName: String, userId: String) -> Void
-    func onChannelUsers(channel: String, users: [(String, String)]) -> Void
-    func onChannelsInfo(info: [(String, Int)]) -> Void
+    func onChannelUsers(channel: String, users: [(name: String, id: String)]) -> Void
+    func onChannelsInfo(info: [(name: String, userCount: Int)]) -> Void
 }
 
 class ServerConnection: WebSocketDelegate {
@@ -72,6 +72,11 @@ class ServerConnection: WebSocketDelegate {
                         switch responseType {
                         case "welcome": handleResponseWelcome(payload: responsePayload)
                         case "message": handleResponseMessage(payload: responsePayload)
+                        case "user-join": handleResponseUserJoin(payload: responsePayload)
+                        case "user-leave": handleResponseUserLeave(payload: responsePayload)
+                        case "user-rename": handleUserRename(payload: responsePayload)
+                        case "channel-users": handleChannelUsers(payload: responsePayload)
+                        case "channels-info": handleChannelsInfo(payload: responsePayload)
                         default: print(String(format: "Unknown response type: %@", responseType))
                         }
                         return
@@ -106,6 +111,66 @@ class ServerConnection: WebSocketDelegate {
         }
     }
     
+    func handleResponseUserJoin(payload: JSON)
+    {
+        if let channel = payload["channel"].string, let userName = payload["user"]["name"].string,
+            let userId = payload["user"]["id"].string {
+            for listener in eventListeners {
+                listener.onUserJoin(channel: channel, userName: userName, userId: userId)
+            }
+        }
+    }
+    
+    func handleResponseUserLeave(payload: JSON)
+    {
+        if let channel = payload["channel"].string, let userName = payload["user"]["name"].string,
+            let userId = payload["user"]["id"].string {
+            for listener in eventListeners {
+                listener.onUserLeave(channel: channel, userName: userName, userId: userId)
+            }
+        }
+    }
+    
+    func handleUserRename(payload: JSON)
+    {
+        if let oldName = payload["old-name"].string, let newName = payload["new-name"].string,
+            let userId = payload["user"]["id"].string {
+            for listener in eventListeners {
+                listener.onUserRename(newName: newName, oldName: oldName, userName: oldName, userId: userId)
+            }
+        }
+    }
+    
+    func handleChannelUsers(payload: JSON)
+    {
+        if let channel = payload["channel"].string, let users = payload["users"].array {
+            var nativeUsers = [(name: String, id: String)]()
+            for user in users {
+                if let name = user["name"].string, let id = user["id"].string {
+                    nativeUsers.append((name: name, id: id))
+                }
+            }
+            for listener in eventListeners {
+                listener.onChannelUsers(channel: channel, users: nativeUsers)
+            }
+        }
+    }
+    
+    func handleChannelsInfo(payload: JSON)
+    {
+        if let channels = payload["info"].array {
+            var nativeChannels = [(name: String, userCount: Int)]()
+            for channel in channels {
+                if let name = channel["name"].string, let userCount = channel["user-count"].int {
+                    nativeChannels.append((name: name, userCount: userCount))
+                }
+            }
+            for listener in eventListeners {
+                listener.onChannelsInfo(info: nativeChannels)
+            }
+        }
+    }
+    
     func changeUserName(newName: String)
     {
         var payload: JSON = JSON()
@@ -126,6 +191,19 @@ class ServerConnection: WebSocketDelegate {
         payload["target-channel"] = JSON(targetChannel)
         payload["message"] = JSON(message)
         sendAction(action: "send-message", payload: payload)
+    }
+    
+    func requestChannelsInfo()
+    {
+        let payload: JSON = JSON()
+        sendAction(action: "get-channels-info", payload: payload)
+    }
+    
+    func requestChannelUsers(targetChannel: String)
+    {
+        var payload: JSON = JSON()
+        payload["target-channel"] = JSON(targetChannel)
+        sendAction(action: "get-channel-users", payload: payload)
     }
     
     func sendAction(action: String, payload: JSON)

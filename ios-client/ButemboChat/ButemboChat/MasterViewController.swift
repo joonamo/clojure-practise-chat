@@ -56,7 +56,6 @@ class MasterViewController: UITableViewController, ServerEventListener {
     func insertNewChannel(channelName: String) {
         if !(channels.contains(channelName))
         {
-            ServerConnection.sharedInstance.joinChannel(channelName: channelName)
             channels.insert(channelName, at: 0)
             let indexPath = IndexPath(row: 0, section: 0)
             tableView.insertRows(at: [indexPath], with: .automatic)
@@ -74,6 +73,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
             let text : String = textfield.text!
             if text.count > 0 {
                 self.insertNewChannel(channelName: text)
+                ServerConnection.sharedInstance.joinChannel(channelName: text)
             }
         }
         alertController.addAction(OKAction)
@@ -134,6 +134,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
                 let object = channels[indexPath.row]
                 let controller = (segue.destination as! UINavigationController).topViewController as! DetailViewController
                 controller.channel = object
+                ServerConnection.sharedInstance.joinChannel(channelName: object)
                 controller.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
                 controller.navigationItem.leftItemsSupplementBackButton = true
             }
@@ -176,6 +177,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
     
     func onConnected() {
         editButtonItem.title = "Change Name"
+        ServerConnection.sharedInstance.requestChannelsInfo()
     }
     func onDisconnected() {
         editButtonItem.title = "Connect"
@@ -193,7 +195,11 @@ class MasterViewController: UITableViewController, ServerEventListener {
     func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
     func onMessage(channel: String, message: String, userName: String, userId: String) {}
     func onUserJoin(channel: String, userName: String, userId: String) {}
-    func onChannelUsers(channel: String, users: [(String, String)]) {}
-    func onChannelsInfo(info: [(String, Int)]) {}
+    func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
+    func onChannelsInfo(info: [(name: String, userCount: Int)]) {
+        for channel in info {
+            insertNewChannel(channelName: channel.name)
+        }
+    }
 }
 

@@ -173,9 +173,12 @@
   [payload conn]
   (if (contains? payload :target-channel)
     (let [channel (payload :target-channel)]
-      (add-user-channel! conn channel)
-      (send-to-channel channel "user-join" {:user(get-name-and-id-for-user conn) :channel channel})
-      (s/connect (bus/subscribe chatrooms channel) conn)
+      ;; only allow user to join channel once
+      (if-not (contains? ((@connections-to-users conn) :channels) channel)
+        (let [_ nil]
+          (add-user-channel! conn channel)
+          (send-to-channel channel "user-join" {:user(get-name-and-id-for-user conn) :channel channel})
+          (s/connect (bus/subscribe chatrooms channel) conn)))
     )
     (reply-error conn "join-channel action payload didn't include target-channel!")))
 
