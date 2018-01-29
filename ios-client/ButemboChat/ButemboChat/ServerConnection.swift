@@ -24,6 +24,7 @@ protocol ServerEventListener: class {
 }
 
 class ServerConnection: WebSocketDelegate {
+    // Static instance for use anywhere
     static let sharedInstance = ServerConnection()
     
     var socket: WebSocket!
@@ -34,7 +35,7 @@ class ServerConnection: WebSocketDelegate {
     // Cache all incoming messages. This wouldn't work in real app, but good enough for demo
     var channelMessages = [String: [(message: String, userName: String, userId: String)]]()
     
-    // register your callbacks here!
+    // register your interest here!
     var eventListeners = [ServerEventListener]()
     
     func doConnect(targetAddress: String) {

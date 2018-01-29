@@ -1,6 +1,7 @@
 //
 //  MasterViewController.swift
 //  ButemboChat
+//  Contains channel list
 //
 //  Created by Joona Heinikoski on 28/01/2018.
 //  Copyright © 2018 Joona Heinikoski. All rights reserved.
@@ -14,9 +15,9 @@ class MasterViewController: UITableViewController, ServerEventListener {
     var channels = [String]()
     var joinedChannels = [String]()
 
+    // Setup view
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
         navigationItem.leftBarButtonItem = editButtonItem
         
         editButtonItem.title = "Connect"
@@ -29,33 +30,14 @@ class MasterViewController: UITableViewController, ServerEventListener {
             detailViewController = (controllers[controllers.count-1] as! UINavigationController).topViewController as? DetailViewController
         }
         
+        // Setup pull to refresh
         refreshControl = UIRefreshControl()
         refreshControl?.attributedTitle = NSAttributedString(string: "Pull to refresh channels")
         refreshControl?.addTarget(self, action: #selector(refreshChannels), for: UIControlEvents.valueChanged)
         tableView.addSubview(refreshControl!)
     }
-
-    override func setEditing(_ editing: Bool, animated: Bool) {
-        if (ServerConnection.sharedInstance.isConnected)
-        {
-            changeUserName(nil)
-        }
-        else
-        {
-            connectToServer(nil)
-        }
-    }
     
-    override func viewWillAppear(_ animated: Bool) {
-        clearsSelectionOnViewWillAppear = splitViewController!.isCollapsed
-        super.viewWillAppear(animated)
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-
+    // Insert new channel to view, makes sure channel diesn't already exist
     func insertNewChannel(channelName: String) {
         if !(channels.contains(channelName))
         {
@@ -64,10 +46,11 @@ class MasterViewController: UITableViewController, ServerEventListener {
             tableView.insertRows(at: [indexPath], with: .automatic)
         }
     }
-
+    
+    // Adds a new channel and joins it, called when user presses plus button
     @objc
-    func joinChannel(_ sender: Any) {
-        let alertController = UIAlertController(title: "Join Channel", message: "Channel name:", preferredStyle: UIAlertControllerStyle.alert)
+    func addChannel(_ sender: Any) {
+        let alertController = UIAlertController(title: "Add Channel", message: "Channel name:", preferredStyle: UIAlertControllerStyle.alert)
         
         alertController.addTextField(configurationHandler: nil)
         
@@ -87,6 +70,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
         present(alertController, animated: true, completion: nil)
     }
     
+    // Ask user for server address, called when user presses connect
     func connectToServer(_ sender: Any?) {
         let alertController = UIAlertController(title: "Connect to server", message: "Server address:", preferredStyle: UIAlertControllerStyle.alert)
         
@@ -108,6 +92,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
         present(alertController, animated: true, completion: nil)
     }
     
+    // Asks user for new name
     func changeUserName(_ sender: Any?) {
         let alertController = UIAlertController(title: "Change name", message: "New name:", preferredStyle: UIAlertControllerStyle.alert)
         
@@ -128,6 +113,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
         present(alertController, animated: true, completion: nil)
     }
     
+    // Asks server connection to join channel and marks channel as joined
     func onJoinChannel(name: String)
     {
         ServerConnection.sharedInstance.joinChannel(channelName: name)
@@ -135,20 +121,84 @@ class MasterViewController: UITableViewController, ServerEventListener {
         self.tableView.reloadData()
     }
     
+    // Called after pull down to refresh, asks server connection to request latest channels info
     @objc
     func refreshChannels()
     {
         ServerConnection.sharedInstance.requestChannelsInfo()
     }
     
-    // MARK: - Segues
+    // What happens when user clicks top left button. Either connect to server or change user name
+    override func setEditing(_ editing: Bool, animated: Bool) {
+        if (ServerConnection.sharedInstance.isConnected)
+        {
+            changeUserName(nil)
+        }
+        else
+        {
+            connectToServer(nil)
+        }
+    }
+    
+    // ServerEventListener protocol
+    
+    func onConnected() {
+        editButtonItem.title = "Change Name"
+        refreshChannels()
+        
+        if navigationItem.rightBarButtonItem == nil {
+            let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addChannel(_:)))
+            navigationItem.rightBarButtonItem = addButton
+        }
+    }
+    
+    func onDisconnected() {
+        editButtonItem.title = "Connect"
+    }
+    
+    func onWelcome(myId: String, myName: String) {
+        if (myName == "new-user")
+        {
+            changeUserName(nil)
+        }
+    }
+    
+    func onChannelsInfo(info: [(name: String, userCount: Int)]) {
+        for channel in info {
+            insertNewChannel(channelName: channel.name)
+        }
+        refreshControl?.endRefreshing()
+    }
+    
+    func onError(description: String) {}
+    func onUserLeave(channel: String, userName: String, userId: String) {}
+    func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
+    func onMessage(channel: String, message: String, userName: String, userId: String) {}
+    func onUserJoin(channel: String, userName: String, userId: String) {}
+    func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
+    
+    // Boiler plate for UTableViewController
+    
+    override func viewWillAppear(_ animated: Bool) {
+        clearsSelectionOnViewWillAppear = splitViewController!.isCollapsed
+        super.viewWillAppear(animated)
+    }
 
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+    
+    // MARK: - Segues
+    
+    // What happens when user clicks on a channel
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "showDetail" {
             if let indexPath = tableView.indexPathForSelectedRow {
                 let object = channels[indexPath.row]
                 let controller = (segue.destination as! UINavigationController).topViewController as! DetailViewController
                 controller.channel = object
+                // Channel can be "joined" multiple times, server doesn't mind
                 onJoinChannel(name: object)
                 controller.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
                 controller.navigationItem.leftItemsSupplementBackButton = true
@@ -165,13 +215,15 @@ class MasterViewController: UITableViewController, ServerEventListener {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return channels.count
     }
-
+    
+    // Format cell
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
 
         var object = channels[indexPath.row]
         if (joinedChannels.contains(object))
         {
+            // Highlight joined channels
             object = String(format: "%@ - Joined", object)
         }
         cell.textLabel!.text = object
@@ -183,54 +235,14 @@ class MasterViewController: UITableViewController, ServerEventListener {
         return true
     }
 
+    // Editing disabled
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-//        if editingStyle == .delete {
-//            channels.remove(at: indexPath.row)
-//            tableView.deleteRows(at: [indexPath], with: .fade)
-//        } else if editingStyle == .insert {
-//            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view.
-//        }
+
     }
     
+    // Editing disabled
     override func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCellEditingStyle {
         return .none
-    }
-    
-    // Mark: ServerEventListener interface
-    
-    func onConnected() {
-        editButtonItem.title = "Change Name"
-        refreshChannels()
-        
-        if navigationItem.rightBarButtonItem == nil {
-            let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(joinChannel(_:)))
-            navigationItem.rightBarButtonItem = addButton
-        }
-    }
-    
-    func onDisconnected() {
-        editButtonItem.title = "Connect"
-    }
-    
-    func onWelcome(myId: String, myName: String) {
-        if (myName == "new-user")
-        {
-            changeUserName(nil)
-        }
-    }
-    
-    func onError(description: String) {}
-    func onUserLeave(channel: String, userName: String, userId: String) {}
-    func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
-    func onMessage(channel: String, message: String, userName: String, userId: String) {}
-    func onUserJoin(channel: String, userName: String, userId: String) {}
-    func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
-    
-    func onChannelsInfo(info: [(name: String, userCount: Int)]) {
-        for channel in info {
-            insertNewChannel(channelName: channel.name)
-        }
-        refreshControl?.endRefreshing()
     }
 }
 

@@ -1,6 +1,7 @@
 //
 //  DetailViewController.swift
 //  ButemboChat
+//  Contains chat interface
 //
 //  Created by Joona Heinikoski on 28/01/2018.
 //  Copyright © 2018 Joona Heinikoski. All rights reserved.
@@ -26,39 +27,9 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         }
     }
 
-
-    @objc
-    func handleKeyboardDidShowNotification(notification: NSNotification) {
-        if let userInfo = notification.userInfo {
-            if let keyboardFrameBegin = (userInfo[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
-                let keyboardFrameEnd = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
-                let usedFrame = keyboardFrameEnd ?? keyboardFrameBegin
-                bottomHeight.constant = usedFrame.size.height
-                view.layoutIfNeeded()
-                scrollToLastMessage()
-            }
-        }
-        keyboardVisible = true
-    }
-    
-    @objc
-    func handleKeyboardDidHideNotification(notification: NSNotification) {
-        bottomHeight.constant = 0
-        view.layoutIfNeeded()
-        scrollToLastMessage()
-        keyboardVisible = false
-    }
-    
-    @objc
-    func dismissKeyboard() {
-        if messageField.isFirstResponder {
-            messageField.resignFirstResponder()
-        }
-    }
-
+    // Set up the view
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
         NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidShow, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidChangeFrame, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidHideNotification(notification:)), name: NSNotification.Name.UIKeyboardDidHide, object: nil)
@@ -76,6 +47,7 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         
         navigationItem.title = channel
         
+        // Register as server event lister
         ServerConnection.sharedInstance.eventListeners.append(self)
         
         // Get cached messages
@@ -83,6 +55,37 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
             for message in ServerConnection.sharedInstance.channelMessages[channel]! {
                 messages.append(message)
             }
+        }
+    }
+
+    // Handle keyboard appearing and changing size
+    @objc
+    func handleKeyboardDidShowNotification(notification: NSNotification) {
+        if let userInfo = notification.userInfo {
+            if let keyboardFrameBegin = (userInfo[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+                let keyboardFrameEnd = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
+                let usedFrame = keyboardFrameEnd ?? keyboardFrameBegin
+                bottomHeight.constant = usedFrame.size.height
+                view.layoutIfNeeded()
+                scrollToLastMessage()
+            }
+        }
+        keyboardVisible = true
+    }
+    
+    // Handle keyboard going away
+    @objc
+    func handleKeyboardDidHideNotification(notification: NSNotification) {
+        bottomHeight.constant = 0
+        view.layoutIfNeeded()
+        scrollToLastMessage()
+        keyboardVisible = false
+    }
+    
+    @objc
+    func dismissKeyboard() {
+        if messageField.isFirstResponder {
+            messageField.resignFirstResponder()
         }
     }
     
@@ -96,34 +99,8 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
             ServerConnection.sharedInstance.eventListeners.remove(at: index)
         }
     }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
     
-    // MARK: UITableView Delegate and Datasource Methods
-    
-    func numberOfSectionsInTableView(tableView: UITableView) -> Int {
-        return 1
-    }
-    
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return messages.count
-    }
-
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath as IndexPath) as! MessageTableCellTableViewCell
-        
-        let message = messages[indexPath.row]
-        cell.message?.text = message.message
-        cell.sender?.text = message.userName
-        
-        return cell
-    }
-    
+    // Handles adding new messages and scrolls down to display it
     func addMessage(message: String, userName: String, userId: String) {
         messages.append((message: message, userName: userName, userId: userId))
         let indexPath = IndexPath(row: messages.count - 1, section: 0)
@@ -140,22 +117,12 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     }
 
     // Mark - Server event listener protocol
-    func onConnected() {}
-    
-    func onDisconnected() {}
-    
-    func onWelcome(myId: String, myName: String) {}
-    
-    func onError(description: String) {}
-    
     func onUserLeave(channel: String, userName: String, userId: String) {
         if (channel == self.channel)
         {
             addMessage(message: String(format: "Left channel %@", channel), userName: userName, userId: userId)
         }
     }
-    
-    func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
     
     func onMessage(channel: String, message: String, userName: String, userId: String) {
         if (channel == self.channel)
@@ -171,9 +138,39 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         }
     }
     
+    func onConnected() {}
+    func onDisconnected() {}
+    func onWelcome(myId: String, myName: String) {}
+    func onError(description: String) {}
+    func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
     func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
-    
     func onChannelsInfo(info: [(name: String, userCount: Int)]) {}
+    
+    // MARK: UITableView Delegate and Datasource Methods
+    
+    func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+        return 1
+    }
+    
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return messages.count
+    }
+    
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath as IndexPath) as! MessageTableCellTableViewCell
+        
+        let message = messages[indexPath.row]
+        cell.message?.text = message.message
+        cell.sender?.text = message.userName
+        
+        return cell
+    }
 
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
 }
 
