@@ -12,6 +12,7 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
 
     var messages = [(message: String, userName: String, userId: String)]()
     var channel = "Unknown channel"
+    var keyboardVisible = false
     
     @IBOutlet weak var bottomHeight: NSLayoutConstraint!
     @IBOutlet weak var messageField: UITextView!
@@ -48,17 +49,23 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     @objc
     func handleKeyboardDidShowNotification(notification: NSNotification) {
         if let userInfo = notification.userInfo {
-            if let keyboardFrame = (userInfo[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
-                bottomHeight.constant = keyboardFrame.size.height + 40
+            if let keyboardFrameBegin = (userInfo[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+                let keyboardFrameEnd = (userInfo[UIKeyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
+                let usedFrame = keyboardFrameEnd ?? keyboardFrameBegin
+                bottomHeight.constant = usedFrame.size.height
                 view.layoutIfNeeded()
+                scrollToLastMessage()
             }
         }
+        keyboardVisible = true
     }
     
     @objc
     func handleKeyboardDidHideNotification(notification: NSNotification) {
         bottomHeight.constant = 0
         view.layoutIfNeeded()
+        scrollToLastMessage()
+        keyboardVisible = false
     }
     
     @objc
@@ -119,6 +126,15 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         messages.append((message: message, userName: userName, userId: userId))
         let indexPath = IndexPath(row: messages.count - 1, section: 0)
         chatHistory.insertRows(at: [indexPath], with: .automatic)
+        scrollToLastMessage()
+    }
+    
+    func scrollToLastMessage() {
+        if (messages.count > 0)
+        {
+            let indexPath = IndexPath(row: messages.count - 1, section: 0)
+            chatHistory.scrollToRow(at: indexPath, at: .bottom, animated: true)
+        }
     }
 
     // Mark - Server event listener protocol

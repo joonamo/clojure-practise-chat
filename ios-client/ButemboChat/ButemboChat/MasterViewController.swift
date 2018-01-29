@@ -20,7 +20,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
         navigationItem.leftBarButtonItem = editButtonItem
         
         editButtonItem.title = "Connect"
-        navigationItem.title = "Butembo Chat"
+        navigationItem.title = "Channels"
         
         ServerConnection.sharedInstance.eventListeners.append(self)
         
