@@ -1,6 +1,13 @@
 # clojure-practise-chat
 Practising clojure and swift by creating a simple chat server and iOs client
 
+## Features
+* Joining existing channels from list or creating new ones
+* Sending messages to channels
+* Notifications when users join and leave channels
+* Users can change name
+* All communications are handled over WebSockets in json, creating a web client shouldn't be too difficult
+
 ![Screenshot](https://raw.githubusercontent.com/joonamo/clojure-practise-chat/master/preview.png)
 
 # Requirements
