@@ -1,6 +1,8 @@
 # clojure-practise-chat
 Practising clojure and swift by creating a simple chat server and iOs client
 
+![Screenshot](https://raw.githubusercontent.com/joonamo/clojure-practise-chat/master/preview.png)
+
 # Requirements
 * [Leiningen](https://leiningen.org/) is required for running and getting libraries for server
 * [Cocoapods](https://cocoapods.org/) is required for getting iOs client libraries
@@ -18,5 +20,3 @@ Practising clojure and swift by creating a simple chat server and iOs client
 
 # Naming
 Server is named chat-server, since that is what it does. Client is named Butembo Chat, since I was drinking coffee from Butembo at the time I created the Xcode project. Butembo is a city in Kongo.
-
-![Screenshot](https://raw.githubusercontent.com/joonamo/clojure-practise-chat/master/preview.png)
