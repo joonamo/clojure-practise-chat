@@ -10,7 +10,7 @@ import UIKit
 
 class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate, UIGestureRecognizerDelegate, ServerEventListener {
     
-
+    var detailItem: String!
     var messages = [(message: String, userName: String, userId: String)]()
     var channel = "Unknown channel"
     var keyboardVisible = false
@@ -26,27 +26,7 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         }
     }
 
-    func configureView() {
-        NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidShow, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidChangeFrame, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidHideNotification(notification:)), name: NSNotification.Name.UIKeyboardDidHide, object: nil)
-        
-        let swipeGestureRecognizer = UISwipeGestureRecognizer(target: self, action: #selector(DetailViewController.dismissKeyboard))
-        swipeGestureRecognizer.direction = UISwipeGestureRecognizerDirection.down
-        swipeGestureRecognizer.delegate = self
-        view.addGestureRecognizer(swipeGestureRecognizer)
-        
-        chatHistory.delegate = self
-        chatHistory.dataSource = self
-        chatHistory.register(UINib(nibName: "ChatCell", bundle: nil), forCellReuseIdentifier: "idCellChat")
-        chatHistory.estimatedRowHeight = 90.0
-        chatHistory.rowHeight = UITableViewAutomaticDimension
-        
-        navigationItem.title = channel
-        
-        ServerConnection.sharedInstance.eventListeners.append(self)
-    }
-    
+
     @objc
     func handleKeyboardDidShowNotification(notification: NSNotification) {
         if let userInfo = notification.userInfo {
@@ -79,7 +59,35 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
-        configureView()
+        NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidChangeFrame, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidHideNotification(notification:)), name: NSNotification.Name.UIKeyboardDidHide, object: nil)
+        
+        let swipeGestureRecognizer = UISwipeGestureRecognizer(target: self, action: #selector(DetailViewController.dismissKeyboard))
+        swipeGestureRecognizer.direction = UISwipeGestureRecognizerDirection.down
+        swipeGestureRecognizer.delegate = self
+        view.addGestureRecognizer(swipeGestureRecognizer)
+        
+        chatHistory.delegate = self
+        chatHistory.dataSource = self
+        chatHistory.register(UINib(nibName: "ChatCell", bundle: nil), forCellReuseIdentifier: "idCellChat")
+        chatHistory.estimatedRowHeight = 90.0
+        chatHistory.rowHeight = UITableViewAutomaticDimension
+        
+        navigationItem.title = channel
+        
+        ServerConnection.sharedInstance.eventListeners.append(self)
+        
+        // Get cached messages
+        if ServerConnection.sharedInstance.channelMessages.keys.contains(channel) {
+            for message in ServerConnection.sharedInstance.channelMessages[channel]! {
+                messages.append(message)
+            }
+        }
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        scrollToLastMessage()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -92,13 +100,6 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
-    }
-
-    var detailItem: String? {
-        didSet {
-            // Update the view.
-            configureView()
-        }
     }
     
     // MARK: UITableView Delegate and Datasource Methods

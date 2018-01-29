@@ -31,6 +31,9 @@ class ServerConnection: WebSocketDelegate {
     
     var myId: String!
     
+    // Cache all incoming messages. This wouldn't work in real app, but good enough for demo
+    var channelMessages = [String: [(message: String, userName: String, userId: String)]]()
+    
     // register your callbacks here!
     var eventListeners = [ServerEventListener]()
     
@@ -108,6 +111,12 @@ class ServerConnection: WebSocketDelegate {
             for listener in eventListeners {
                 listener.onMessage(channel: channel, message: message, userName: userName, userId: userId)
             }
+            
+            // Add this channel to cached messages if not available
+            if !channelMessages.keys.contains(channel) {
+                channelMessages[channel] = [(message: String, userName: String, userId: String)]()
+            }
+            channelMessages[channel]?.append((message: message, userName: userName, userId: userId))
         }
     }
     
