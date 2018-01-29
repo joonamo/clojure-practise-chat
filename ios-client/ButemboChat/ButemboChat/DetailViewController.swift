@@ -8,25 +8,21 @@
 
 import UIKit
 
-class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate, UIGestureRecognizerDelegate {
-    
-    
+class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate, UIGestureRecognizerDelegate, ServerEventListener {
 
+    var messages = [(message: String, userName: String, userId: String)]()
+    var channel = "Unknown channel"
+    
     @IBOutlet weak var bottomHeight: NSLayoutConstraint!
     @IBOutlet weak var messageField: UITextView!
     @IBOutlet weak var chatHistory: UITableView!
     
     @IBAction func sendButtonPressed(_ sender: Any) {
         if let message = messageField.text {
-            messages.append(message)
-            let indexPath = IndexPath(row: messages.count - 1, section: 0)
-            chatHistory.insertRows(at: [indexPath], with: .automatic)
+            ServerConnection.sharedInstance.sendMessage(targetChannel: channel, message: message)
             messageField.text = ""
         }
     }
-    
-    var messages = [String]()
-    var channel = "Unknown channel"
 
     func configureView() {
         NotificationCenter.default.addObserver(self, selector: #selector(DetailViewController.handleKeyboardDidShowNotification(notification:)), name: NSNotification.Name.UIKeyboardDidShow, object: nil)
@@ -43,6 +39,10 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         chatHistory.register(UINib(nibName: "ChatCell", bundle: nil), forCellReuseIdentifier: "idCellChat")
         chatHistory.estimatedRowHeight = 90.0
         chatHistory.rowHeight = UITableViewAutomaticDimension
+        
+        navigationItem.title = channel
+        
+        ServerConnection.sharedInstance.eventListeners.append(self)
     }
     
     @objc
@@ -73,6 +73,13 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         // Do any additional setup after loading the view, typically from a nib.
         configureView()
     }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if let index = ServerConnection.sharedInstance.eventListeners.index(where: { $0 === self as ServerEventListener}) {
+            ServerConnection.sharedInstance.eventListeners.remove(at: index)
+        }
+    }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
@@ -101,11 +108,54 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath as IndexPath) as! MessageTableCellTableViewCell
         
-        cell.message?.text = messages[indexPath.row]
-        cell.sender?.text = "Unknown user:"
+        let message = messages[indexPath.row]
+        cell.message?.text = message.message
+        cell.sender?.text = message.userName
         
         return cell
     }
+    
+    func addMessage(message: String, userName: String, userId: String) {
+        messages.append((message: message, userName: userName, userId: userId))
+        let indexPath = IndexPath(row: messages.count - 1, section: 0)
+        chatHistory.insertRows(at: [indexPath], with: .automatic)
+    }
+
+    // Mark - Server event listener protocol
+    func onConnected() {}
+    
+    func onDisconnected() {}
+    
+    func onWelcome(myId: String, myName: String) {}
+    
+    func onError(description: String) {}
+    
+    func onUserLeave(channel: String, userName: String, userId: String) {
+        if (channel == self.channel)
+        {
+            addMessage(message: String(format: "Left channel %@", channel), userName: userName, userId: userId)
+        }
+    }
+    
+    func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
+    
+    func onMessage(channel: String, message: String, userName: String, userId: String) {
+        if (channel == self.channel)
+        {
+            addMessage(message: message, userName: userName, userId: userId)
+        }
+    }
+    
+    func onUserJoin(channel: String, userName: String, userId: String) {
+        if (channel == self.channel)
+        {
+            addMessage(message: String(format: "Joined channel %@", channel), userName: userName, userId: userId)
+        }
+    }
+    
+    func onChannelUsers(channel: String, users: [(String, String)]) {}
+    
+    func onChannelsInfo(info: [(String, Int)]) {}
 
 }
 

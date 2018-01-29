@@ -20,7 +20,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
         navigationItem.leftBarButtonItem = editButtonItem
         
         editButtonItem.title = "Connect"
-        navigationItem.title = ""
+        navigationItem.title = "Butembo Chat"
         
         ServerConnection.sharedInstance.eventListeners.append(self)
         
@@ -133,7 +133,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
             if let indexPath = tableView.indexPathForSelectedRow {
                 let object = channels[indexPath.row]
                 let controller = (segue.destination as! UINavigationController).topViewController as! DetailViewController
-                controller.detailItem = object
+                controller.channel = object
                 controller.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
                 controller.navigationItem.leftItemsSupplementBackButton = true
             }

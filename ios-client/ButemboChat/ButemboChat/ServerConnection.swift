@@ -10,7 +10,7 @@ import Foundation
 import Starscream
 import SwiftyJSON
 
-protocol ServerEventListener {
+protocol ServerEventListener: class {
     func onConnected() -> Void
     func onDisconnected() -> Void
     func onWelcome(myId: String, myName: String) -> Void
@@ -71,6 +71,7 @@ class ServerConnection: WebSocketDelegate {
                     if let responseType = dataAsJson["type"].string, let responsePayload : JSON = dataAsJson["payload"]{
                         switch responseType {
                         case "welcome": handleResponseWelcome(payload: responsePayload)
+                        case "message": handleResponseMessage(payload: responsePayload)
                         default: print(String(format: "Unknown response type: %@", responseType))
                         }
                         return
@@ -95,6 +96,16 @@ class ServerConnection: WebSocketDelegate {
         }
     }
     
+    func handleResponseMessage(payload : JSON)
+    {
+        if let channel = payload["channel"].string, let userName = payload["user"]["name"].string,
+            let userId = payload["user"]["id"].string, let message = payload["message"].string {
+            for listener in eventListeners {
+                listener.onMessage(channel: channel, message: message, userName: userName, userId: userId)
+            }
+        }
+    }
+    
     func changeUserName(newName: String)
     {
         var payload: JSON = JSON()
@@ -107,6 +118,14 @@ class ServerConnection: WebSocketDelegate {
         var payload: JSON = JSON()
         payload["target-channel"] = JSON(channelName)
         sendAction(action: "join-channel", payload: payload)
+    }
+    
+    func sendMessage(targetChannel: String, message: String)
+    {
+        var payload: JSON = JSON()
+        payload["target-channel"] = JSON(targetChannel)
+        payload["message"] = JSON(message)
+        sendAction(action: "send-message", payload: payload)
     }
     
     func sendAction(action: String, payload: JSON)
