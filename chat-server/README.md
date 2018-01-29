@@ -1,6 +1,6 @@
 # chat-server
 
-Simple chat server that works on websockets
+Simple chat server that works on websockets. Created for learning clojure.
 
 ## Usage
 
