@@ -19,7 +19,7 @@ protocol ServerEventListener: class {
     func onUserRename(newName: String, oldName: String, userName: String, userId: String) -> Void
     func onMessage(channel: String, message: String, userName: String, userId: String) -> Void
     func onUserJoin(channel: String, userName: String, userId: String) -> Void
-    func onChannelUsers(channel: String, users: [(name: String, id: String)]) -> Void
+    func onChannelUsers(channel: String, users: [String: String]) -> Void
     func onChannelsInfo(info: [(name: String, userCount: Int)]) -> Void
 }
 
@@ -34,6 +34,7 @@ class ServerConnection: WebSocketDelegate {
     
     // Cache all incoming messages. This wouldn't work in real app, but good enough for demo
     var channelMessages = [String: [(message: String, userName: String, userId: String)]]()
+    var channelUsers = [String: [String: String]]()
     
     // register your interest here!
     var eventListeners = [ServerEventListener]()
@@ -124,7 +125,12 @@ class ServerConnection: WebSocketDelegate {
     func handleResponseUserJoin(payload: JSON)
     {
         if let channel = payload["channel"].string, let userName = payload["user"]["name"].string,
-            let userId = payload["user"]["id"].string {
+        let userId = payload["user"]["id"].string {
+            if !channelUsers.keys.contains(channel) {
+                // Add new entry if doesn't exist
+                channelUsers[channel] = [String: String]()
+            }
+            channelUsers[channel]![userId] = userName
             for listener in eventListeners {
                 listener.onUserJoin(channel: channel, userName: userName, userId: userId)
             }
@@ -134,7 +140,10 @@ class ServerConnection: WebSocketDelegate {
     func handleResponseUserLeave(payload: JSON)
     {
         if let channel = payload["channel"].string, let userName = payload["user"]["name"].string,
-            let userId = payload["user"]["id"].string {
+        let userId = payload["user"]["id"].string {
+            if channelUsers.keys.contains(channel) {
+                channelUsers[channel]!.removeValue(forKey: userId)
+            }
             for listener in eventListeners {
                 listener.onUserLeave(channel: channel, userName: userName, userId: userId)
             }
@@ -144,7 +153,15 @@ class ServerConnection: WebSocketDelegate {
     func handleUserRename(payload: JSON)
     {
         if let oldName = payload["old-name"].string, let newName = payload["new-name"].string,
-            let userId = payload["user"]["id"].string {
+        let userId = payload["user"]["id"].string {
+            // User rename doesn't include channel info
+            for channel in channelUsers.keys {
+                if channelUsers[channel]!.keys.contains(userId) {
+                    // Update entry
+                    channelUsers[channel]![userId] = newName
+                }
+            }
+            
             for listener in eventListeners {
                 listener.onUserRename(newName: newName, oldName: oldName, userName: oldName, userId: userId)
             }
@@ -154,12 +171,14 @@ class ServerConnection: WebSocketDelegate {
     func handleChannelUsers(payload: JSON)
     {
         if let channel = payload["channel"].string, let users = payload["users"].array {
-            var nativeUsers = [(name: String, id: String)]()
+            var nativeUsers = [String: String]()
             for user in users {
                 if let name = user["name"].string, let id = user["id"].string {
-                    nativeUsers.append((name: name, id: id))
+                    nativeUsers[id] = name
                 }
             }
+            // We trust this is the latest data
+            channelUsers[channel] = nativeUsers;
             for listener in eventListeners {
                 listener.onChannelUsers(channel: channel, users: nativeUsers)
             }

@@ -119,6 +119,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
         ServerConnection.sharedInstance.joinChannel(channelName: name)
         self.joinedChannels.append(name)
         self.tableView.reloadData()
+        ServerConnection.sharedInstance.requestChannelUsers(targetChannel: name)
     }
     
     // Called after pull down to refresh, asks server connection to request latest channels info
@@ -175,7 +176,7 @@ class MasterViewController: UITableViewController, ServerEventListener {
     func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
     func onMessage(channel: String, message: String, userName: String, userId: String) {}
     func onUserJoin(channel: String, userName: String, userId: String) {}
-    func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
+    func onChannelUsers(channel: String, users: [String : String]) {}
     
     // Boiler plate for UTableViewController
     

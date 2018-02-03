@@ -47,9 +47,20 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         
         navigationItem.title = channel
         
-        // Register as server event lister
-        ServerConnection.sharedInstance.eventListeners.append(self)
+        setupMessages()
         
+        let usersButton = UIBarButtonItem(title: "👥", style: UIBarButtonItemStyle.plain, target: self, action: #selector(presentUsers))
+        navigationItem.rightBarButtonItem = usersButton
+    }
+    
+    func setupMessages() {
+        // Register as server event lister
+        if !(ServerConnection.sharedInstance.eventListeners.contains(where: { $0 === self as ServerEventListener}))
+        {
+            ServerConnection.sharedInstance.eventListeners.append(self)
+        }
+        
+        messages.removeAll()
         // Get cached messages
         if ServerConnection.sharedInstance.channelMessages.keys.contains(channel) {
             for message in ServerConnection.sharedInstance.channelMessages[channel]! {
@@ -58,6 +69,14 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
         }
     }
 
+    // How to show users
+    @objc
+    func presentUsers() {
+        let usersController = UserListViewController()
+        usersController.channel = channel
+        self.present(UINavigationController(rootViewController: usersController), animated: true, completion: nil)
+    }
+    
     // Handle keyboard appearing and changing size
     @objc
     func handleKeyboardDidShowNotification(notification: NSNotification) {
@@ -90,6 +109,7 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     }
     
     override func viewDidAppear(_ animated: Bool) {
+        setupMessages()
         scrollToLastMessage()
     }
     
@@ -143,7 +163,7 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
     func onWelcome(myId: String, myName: String) {}
     func onError(description: String) {}
     func onUserRename(newName: String, oldName: String, userName: String, userId: String) {}
-    func onChannelUsers(channel: String, users: [(name: String, id: String)]) {}
+    func onChannelUsers(channel: String, users: [String : String]) {}
     func onChannelsInfo(info: [(name: String, userCount: Int)]) {}
     
     // MARK: UITableView Delegate and Datasource Methods
