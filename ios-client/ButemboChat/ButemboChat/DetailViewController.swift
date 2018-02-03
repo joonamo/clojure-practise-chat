@@ -67,6 +67,7 @@ class DetailViewController: UIViewController, UITableViewDelegate, UITableViewDa
                 messages.append(message)
             }
         }
+        chatHistory.reloadData()
     }
 
     // How to show users
